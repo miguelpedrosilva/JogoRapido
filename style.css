@@ -189,9 +189,6 @@ button:active { transform: scale(.98); }
   display: inline-flex; align-items: center; gap: 3px; background: #111;
   border-radius: 999px; padding: 2px 7px 2px 4px; font-size: 12px; font-weight: 800; color: #fff;
 }
-.cd { display: inline-block; width: 9px; height: 13px; border-radius: 2px; vertical-align: middle; }
-.cy { background: #facc15; }
-.cr { background: #ef4444; }
 .who { display: flex; align-items: center; gap: 8px; }
 
 /* ---------- Campo (prancheta do técnico) ---------- */

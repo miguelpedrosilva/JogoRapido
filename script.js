@@ -41,8 +41,8 @@ const PAGE_TITLES = { inicio:'Tela Inicial', jogador:'Jogador', tecnico:'Técnic
 const IC = {
   gol: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#111" stroke-width="1.5"/><polygon points="12,7 16,10 14.5,15 9.5,15 8,10" fill="#111"/></svg>',
   ass: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 15 L3 7 L8 7 L9 11 L15 12 L20 12 L21 16 L21 18 L3 18 Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-  am: '<span class="cd cy"></span>',
-  ve: '<span class="cd cr"></span>'
+  am: '🟨',
+  ve: '🟥'
 };
 function badges(s) {
   const out = [];
@@ -311,10 +311,10 @@ function renderQuem() {
   const lf = lastFinished();
   const votos = lf ? Object.keys(db.votes[lf.id] || {}).length : 0;
   const rows = [
-    ...db.players.map(p => ({ n: dname(p), r: 'Jogador', p })),
-    ...db.techs.map(t => ({ n: t.name, r: 'Técnico ' + teamOf(t.team), p: t })),
-    ...(db.ref ? [{ n: db.ref.name, r: 'Árbitro', p: db.ref }] : []),
-    ...db.fans.map(f => ({ n: f.name, r: 'Torcedor', p: f }))
+    ...db.players.map(p => ({ n: dname(p), r: '⚽ Jogador', p })),
+    ...db.techs.map(t => ({ n: t.name, r: '📋 Técnico ' + teamOf(t.team), p: t })),
+    ...(db.ref ? [{ n: db.ref.name, r: '🎩 Árbitro', p: db.ref }] : []),
+    ...db.fans.map(f => ({ n: f.name, r: '📈 Torcedor', p: f }))
   ];
   $('tab-quem').innerHTML = `
     <div class="card">
@@ -481,8 +481,8 @@ function renderPerfil(rec) {
       <div class="counts" style="margin-top:16px">
         <div class="count"><b>${s.gols}</b><span>Gols</span></div>
         <div class="count"><b>${s.ass}</b><span>Assistências</span></div>
-        <div class="count"><b>${s.am}</b><span>Amarelos</span></div>
-        <div class="count"><b>${s.ve}</b><span>Vermelhos</span></div>
+        <div class="count"><b>${s.am}</b><span>🟨 Amarelos</span></div>
+        <div class="count"><b>${s.ve}</b><span>🟥 Vermelhos</span></div>
       </div>
       <p class="muted" style="margin-top:12px">Nota final: <b>${notaTxt(s.nota)}</b> · Jogos: ${s.jogos}</p>
     </div>`;
@@ -894,9 +894,9 @@ function eventModal(team, pid) {
   openModal(`
     <h3>${esc(dname(p))} <span class="muted">#${p.shirt}</span></h3>
     <div class="row wrap" style="margin-bottom:12px">
-      <button class="btn-small" data-ev="goal">Gol</button>
-      <button class="btn-ghost" data-ev="yellow">Amarelo</button>
-      <button class="btn-danger" data-ev="red">Vermelho</button>
+      <button class="btn-small" data-ev="goal">⚽ Gol</button>
+      <button class="btn-ghost" data-ev="yellow">🟨 Amarelo</button>
+      <button class="btn-danger" data-ev="red">🟥 Vermelho</button>
     </div>
     <label>Minuto (opcional)<input id="mMin" type="number" min="0" max="200" placeholder="Vazio = minuto atual"></label>
     <button class="btn-ghost" id="mClose">Cancelar</button>`);
@@ -944,7 +944,7 @@ function addEvent({ tipo, team, jog, ass, min }) {
 function drawFeed() {
   const m = lastMatch();
   const list = m ? (m.events || []).slice().reverse() : [];
-  const ic = { goal: IC.gol + ' Gol', yellow: IC.am + ' Amarelo', red: IC.ve + ' Vermelho' };
+  const ic = { goal: '⚽ Gol', yellow: IC.am + ' Amarelo', red: IC.ve + ' Vermelho' };
   $('feed').innerHTML = list.length ? list.map(e => `
     <div class="ev">
       <div><b>${ic[e.tipo]}</b> · ${esc(nameOf(e.jog))}
@@ -984,9 +984,9 @@ function editModal(id) {
     <h3>Editar lance</h3>
     <label>Tipo
       <select id="eTipo">
-        <option value="goal" ${e.tipo === 'goal' ? 'selected' : ''}>Gol</option>
-        <option value="yellow" ${e.tipo === 'yellow' ? 'selected' : ''}>Amarelo</option>
-        <option value="red" ${e.tipo === 'red' ? 'selected' : ''}>Vermelho</option>
+        <option value="goal" ${e.tipo === 'goal' ? 'selected' : ''}>⚽ Gol</option>
+        <option value="yellow" ${e.tipo === 'yellow' ? 'selected' : ''}>🟨 Amarelo</option>
+        <option value="red" ${e.tipo === 'red' ? 'selected' : ''}>🟥 Vermelho</option>
       </select>
     </label>
     <label>Jogador<select id="eJog">${opts(roster, e.jog)}</select></label>
@@ -1045,7 +1045,7 @@ $('btnSalvarNotas').onclick = () => {
 };
 
 function resumo(m) {
-  const sym = { goal: 'Gol', yellow: 'Amarelo', red: 'Vermelho' };
+  const sym = { goal: '⚽ Gol', yellow: '🟨 Amarelo', red: '🟥 Vermelho' };
   const linhas = (m.events || []).map(e => `${e.min}' ${sym[e.tipo]} · ${nameOf(e.jog)}${e.ass ? ' (assist. ' + nameOf(e.ass) + ')' : ''}`);
   const s = scoreOf(m);
   const data = m.info.date ? new Date(m.info.date).toLocaleString('pt-BR') : '-';
@@ -1081,8 +1081,8 @@ function notifyCheck() {
   if (mine && mine.mod !== 'Os dois' && mine.mod !== m.info.mod) return;
   const e = fresh[fresh.length - 1];
   const txt = e.tipo === 'goal'
-    ? `Gol de ${nameOf(e.jog)}${e.ass ? ' · assistência: ' + nameOf(e.ass) : ' · sem assistência'} (${e.min}')`
-    : `${e.tipo === 'yellow' ? 'Amarelo' : 'Vermelho'} para ${nameOf(e.jog)} (${e.min}')`;
+    ? `⚽ Gol de ${nameOf(e.jog)}${e.ass ? ' · assistência: ' + nameOf(e.ass) : ' · sem assistência'} (${e.min}')`
+    : `${e.tipo === 'yellow' ? '🟨 Amarelo' : '🟥 Vermelho'} para ${nameOf(e.jog)} (${e.min}')`;
   showNotify(txt);
 }
 let notifyTimer = null;
@@ -1179,8 +1179,8 @@ $('btnTut').onclick = () => {
     <ol>
       <li><b>Jogador:</b> cadastre-se com o PIN JR- uma vez. Depois o aparelho te reconhece.</li>
       <li><b>Técnico:</b> cadastre-se com o PIN TEC-, escolha o time e monte a escalação.</li>
-      <li><b>Árbitro:</b> salve o pré-jogo, inicie o tempo e registre os lances.</li>
-      <li><b>Torcida:</b> depois da partida, diga se assistiu e vote uma vez.</li>
+      <li><b>🎩 Árbitro:</b> salve o pré-jogo, inicie o tempo e registre os lances.</li>
+      <li><b>📈 Torcida:</b> depois da partida, diga se assistiu e vote uma vez.</li>
     </ol>
     <button class="btn" id="mClose">Entendi</button>`);
   $('mClose').onclick = closeModal;
@@ -1238,8 +1238,8 @@ function refreshWho() {
   const opts = [
     ...db.players.map(p => ({ d: p.device, l: '⚽ ' + dname(p) })),
     ...db.techs.map(t => ({ d: t.device, l: '📋 ' + t.name + ' (' + teamOf(t.team) + ')' })),
-    ...(db.ref ? [{ d: db.ref.device, l: '🟨 ' + db.ref.name }] : []),
-    ...db.fans.map(f => ({ d: f.device, l: '⭐ ' + f.name }))
+    ...(db.ref ? [{ d: db.ref.device, l: '🎩 ' + db.ref.name }] : []),
+    ...db.fans.map(f => ({ d: f.device, l: '📈 ' + f.name }))
   ].filter(o => o.d);
   const atual = device();
   $('whoSel').innerHTML = '<option value="">Entrar como…</option>' +
@@ -1304,8 +1304,6 @@ if (TESTE) {
   $('whoSel').classList.remove('hidden');
   $('btnSimular').classList.remove('hidden');
   $('btnGolTeste').classList.remove('hidden');
-} else {
-  $('btnEmbaralhar').classList.add('hidden');
 }
 
 /* ===================== INICIALIZAÇÃO ===================== */
