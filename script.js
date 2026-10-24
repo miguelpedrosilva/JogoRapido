@@ -1,6 +1,8 @@
 'use strict';
 
 /* ===================== CONFIGURAÇÃO ===================== */
+const TESTE = true; // true = modo teste (sem PIN). Coloque false antes de publicar.
+
 const PINS = {
   jogador: ['JR-482','JR-917','JR-305','JR-661','JR-128','JR-774','JR-239','JR-590','JR-846','JR-013','JR-708','JR-364','JR-955','JR-472','JR-281','JR-619','JR-837','JR-156','JR-694','JR-421','JR-073','JR-530'],
   tecnico: ['TEC-X7Q2','TEC-P4W9'],
@@ -36,6 +38,22 @@ const FORM = {
 };
 
 const PAGE_TITLES = { inicio:'Tela Inicial', jogador:'Jogador', tecnico:'Técnico', arbitro:'Árbitro', torcida:'Torcida & Votação' };
+
+/* ===================== ÍCONES (SVG, funcionam em qualquer celular) ===================== */
+const IC = {
+  gol: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#111" stroke-width="1.5"/><polygon points="12,7 16,10 14.5,15 9.5,15 8,10" fill="#111"/></svg>',
+  ass: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 15 L3 7 L8 7 L9 11 L15 12 L20 12 L21 16 L21 18 L3 18 Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  am: '<span class="cd cy"></span>',
+  ve: '<span class="cd cr"></span>'
+};
+function badges(s) {
+  const out = [];
+  if (s.gols) out.push(`<span class="bd">${IC.gol}${s.gols}</span>`);
+  if (s.ass) out.push(`<span class="bd">${IC.ass}${s.ass}</span>`);
+  if (s.am) out.push(`<span class="bd">${IC.am}${s.am}</span>`);
+  if (s.ve) out.push(`<span class="bd">${IC.ve}${s.ve}</span>`);
+  return out.join(' ');
+}
 
 /* ===================== UTILITÁRIOS ===================== */
 const $ = id => document.getElementById(id);
@@ -192,10 +210,6 @@ function statsOf(pid) {
          : s.notaTec != null ? s.notaTec : s.notaFan;
   return s;
 }
-function badges(s) {
-  return [s.gols ? `⚽ ${s.gols}` : '', s.ass ? `👟 ${s.ass}` : '',
-          s.am ? `🟨 ${s.am}` : '', s.ve ? `🟥 ${s.ve}` : ''].filter(Boolean).join(' · ');
-}
 const notaTxt = n => n == null ? '—' : n.toFixed(1);
 
 function goleiros() {
@@ -275,11 +289,12 @@ function renderStatusCard() {
   const sc = m ? scoreOf(m) : null;
   $('matchStatus').innerHTML = `<h3>Jogo atual</h3><p><b>${st}</b></p>` +
     (m ? `<p class="muted">${esc(m.info.local)} · ${esc(m.info.tipo)} · ${esc(m.info.mod)}</p>
-          <p class="placar-mini">${teamOf('A')} <b>${sc.A}</b> × <b>${sc.B}</b> ${teamOf('B')}</p>` : '');
+          <p><b>${teamOf('A')} ${sc.A} × ${sc.B} ${teamOf('B')}</b></p>` : '');
 }
 
 function renderQuem() {
-  const votos = lastFinished() ? Object.keys(db.votes[lastFinished().id] || {}).length : 0;
+  const lf = lastFinished();
+  const votos = lf ? Object.keys(db.votes[lf.id] || {}).length : 0;
   const rows = [
     ...db.players.map(p => ({ n: dname(p), r: 'Jogador', p })),
     ...db.techs.map(t => ({ n: t.name, r: 'Técnico ' + teamOf(t.team), p: t })),
@@ -300,7 +315,7 @@ function renderQuem() {
     <div class="card">
       <h3>Todos cadastrados</h3>
       <div class="list">${rows.map(r => `
-        <div class="item">${r.p.photo !== undefined ? avatar(r.p, 'sm') : `<span class="av sm">${esc((r.n||'?')[0].toUpperCase())}</span>`}
+        <div class="item">${r.p.photo ? avatar(r.p, 'sm') : `<span class="av sm">${esc((r.n || '?')[0].toUpperCase())}</span>`}
           <div><b>${esc(r.n)}</b><small>${esc(r.r)}</small></div></div>`).join('') || '<p class="muted">Ninguém cadastrado ainda.</p>'}
       </div>
     </div>`;
@@ -322,41 +337,42 @@ function pod(list, valor, icone, rotulo) {
 
 function renderCraques() {
   const rows = db.players.map(p => ({ p, s: statsOf(p.id) }));
-  const top = (key) => rows.filter(r => key(r) > 0).sort((a, b) => key(b) - key(a)).slice(0, 3);
   const artilharia = rows.filter(r => r.s.gols > 0).sort((a, b) => b.s.gols - a.s.gols).slice(0, 3);
   const garcons = rows.filter(r => r.s.ass > 0).sort((a, b) => b.s.ass - a.s.ass).slice(0, 3);
   const craques = rows.filter(r => r.s.nota != null).sort((a, b) => b.s.nota - a.s.nota).slice(0, 3);
-
   const gk = goleiros();
   const melhor = gk.length ? gk.slice().sort((a, b) => a.media - b.media)[0] : null;
   const pior = gk.length ? gk.slice().sort((a, b) => b.media - a.media)[0] : null;
   const ult = craqueDoJogo(lastFinished());
-
   const tabela = rows.slice().sort((a, b) => b.s.gols - a.s.gols || (b.s.nota || 0) - (a.s.nota || 0));
 
   $('tab-craques').innerHTML = `
-    <div class="card"><h3>⚽ Artilharia</h3>${pod(artilharia, r => r.s.gols, '⚽', 'gols')}</div>
-    <div class="card"><h3>👟 Garçons</h3>${pod(garcons, r => r.s.ass, '👟', 'assistências')}</div>
-    <div class="card"><h3>⭐ Craques (nota final)</h3>${pod(craques, r => notaTxt(r.s.nota), '⭐', 'pontos')}</div>
+    <div class="card"><h3>Artilharia</h3>${pod(artilharia, r => r.s.gols, IC.gol, 'gols')}</div>
+    <div class="card"><h3>Garçons</h3>${pod(garcons, r => r.s.ass, IC.ass, 'assistências')}</div>
+    <div class="card"><h3>Craques (nota final)</h3>${pod(craques, r => notaTxt(r.s.nota), '⭐', 'nota')}</div>
     <div class="card">
-      <h3>🧤 Goleiros</h3>
+      <h3>Goleiros</h3>
       <div class="list">
         <div class="item"><span>Melhor (menos gols sofridos)</span><b style="margin-left:auto">${melhor ? esc(dname(melhor.p)) + ' · ' + melhor.media.toFixed(1) + ' por jogo' : '—'}</b></div>
         <div class="item"><span>Mão de alface</span><b style="margin-left:auto">${pior ? esc(dname(pior.p)) + ' · ' + pior.media.toFixed(1) + ' por jogo' : '—'}</b></div>
       </div>
     </div>
     <div class="card">
-      <h3>🏅 Craque do último jogo</h3>
+      <h3>Craque do último jogo</h3>
       <p>${ult ? `<b>${esc(dname(ult.p))}</b> · ${ult.pt} pontos` : 'Ainda não há partida encerrada.'}</p>
     </div>
     <div class="card">
       <h3>Tabela geral</h3>
       <div class="tablewrap"><table>
-        <thead><tr><th>#</th><th>Jogador</th><th>Camisa</th><th>⚽</th><th>👟</th><th>🟨</th><th>🟥</th><th>Téc.</th><th>Torc.</th><th>Final</th></tr></thead>
+        <thead><tr>
+          <th>#</th><th>Jogador</th><th>Camisa</th>
+          <th>${IC.gol}</th><th>${IC.ass}</th><th>${IC.am}</th><th>${IC.ve}</th>
+          <th>Nota técnico</th><th>Nota torcida</th><th>Final</th>
+        </tr></thead>
         <tbody>${tabela.map((r, i) => `
           <tr>
             <td class="neon">${i + 1}º</td>
-            <td><b>${esc(dname(r.p))}</b><br><small class="muted">${esc(r.p.pos)}</small></td>
+            <td><div class="who">${avatar(r.p, 'sm')}<div><b>${esc(dname(r.p))}</b><small class="muted" style="display:block">${esc(r.p.pos)}</small></div></div></td>
             <td>${r.p.shirt}</td>
             <td>${r.s.gols}</td><td>${r.s.ass}</td><td>${r.s.am}</td><td>${r.s.ve}</td>
             <td>${notaTxt(r.s.notaTec)}</td><td>${notaTxt(r.s.notaFan)}</td><td><b>${notaTxt(r.s.nota)}</b></td>
@@ -377,28 +393,34 @@ function renderEscalacao() {
       ${m.info.veredito ? `<div class="veredito ${m.info.veredito.ok ? 'ok' : 'no'}">${esc(m.info.veredito.texto)}${m.info.veredito.r.length ? `<small>${esc(m.info.veredito.r.join(' · '))}</small>` : ''}</div>` : ''}
     </div>` : `<div class="card"><p class="muted">O árbitro ainda não cadastrou o jogo.</p></div>`;
 
-  const bloco = t => {
-    const tec = db.techs.find(x => x.team === t);
+  const campo = t => {
     const tm = db.teams[t];
+    const tec = db.techs.find(x => x.team === t);
     const slots = slotsOf(tm.formation);
-    const titulares = tm.slots.map((id, i) => ({ p: findP(id), code: slots[i].code })).filter(x => x.p);
+    const tit = tm.slots.map((id, i) => ({ p: findP(id), x: slots[i].x, y: slots[i].y })).filter(x => x.p);
     const banco = tm.members.map(findP).filter(p => p && !tm.slots.includes(p.id));
-    const linha = ({ p, code }) => {
+    const itens = tit.map(({ p, x, y }) => {
       const s = statsOf(p.id);
-      return `<div class="lu-row">${avatar(p, 'sm')}<div><b>${esc(dname(p))}</b><div class="b muted">${badges(s) || '&nbsp;'}</div></div>
-        <span class="shirt">${p.shirt}</span><span class="pos">${esc(code)}</span></div>`;
-    };
+      const nota = s.nota;
+      const cls = nota != null && nota / 10 >= 7 ? 'ok' : 'warn';
+      return `<div class="pl" style="left:${x}%;top:${y}%">
+        ${nota != null ? `<span class="nota ${cls}">${(nota / 10).toFixed(2).replace('.', ',')}</span>` : ''}
+        ${avatar(p, 'dot')}
+        <div class="pbd">${badges(s)}</div>
+        <div class="pn">${p.shirt} ${esc(dname(p))}</div>
+      </div>`;
+    }).join('');
     return `<div class="card">
       <div class="lineup-title">
         ${tec ? avatar(tec, 'sm') : '<span class="av sm">?</span>'}
         <div><h3 style="margin:0">${teamOf(t)} · ${tm.formation}</h3>
         <small>Técnico: ${esc(tec ? tec.name : 'ainda não cadastrado')}</small></div>
       </div>
-      ${titulares.map(linha).join('') || '<p class="muted">Escalação ainda não montada.</p>'}
-      ${banco.length ? `<h3 style="margin-top:14px">Banco</h3>${banco.map(p => `<div class="lu-row">${avatar(p, 'sm')}<b>${esc(dname(p))}</b><span class="shirt">${p.shirt}</span></div>`).join('')}` : ''}
+      <div class="pitch-esc">${itens || '<p style="position:absolute;top:45%;width:100%;text-align:center;color:#fff">Escalação ainda não montada</p>'}</div>
+      ${banco.length ? `<h3>Banco</h3>` + banco.map(p => `<div class="lu-row">${avatar(p, 'sm')}<b>${esc(dname(p))}</b><span class="shirt">${p.shirt}</span></div>`).join('') : ''}
     </div>`;
   };
-  $('tab-escalacao').innerHTML = info + `<div class="grid2">${bloco('A')}${bloco('B')}</div>`;
+  $('tab-escalacao').innerHTML = info + `<div class="grid2">${campo('A')}${campo('B')}</div>`;
 }
 
 /* ===================== JOGADOR ===================== */
@@ -431,23 +453,22 @@ function renderPerfil(rec) {
   $('jogPerfil').classList.remove('hidden');
   $('jogPerfil').innerHTML = `
     <div class="card">
-      <div class="row" style="gap:16px">
+      <div class="who" style="gap:16px">
         ${avatar(p, 'lg')}
         <div>
           <h2 style="margin:0">${esc(dname(p))}</h2>
           ${p.nick ? `<p class="muted" style="margin:2px 0">${esc(p.name)}</p>` : ''}
-          <p style="margin:6px 0"><span class="pill">#${p.shirt}</span> <span class="pill">${esc(p.pos)}</span> <span class="pill">${esc(p.mod)}</span></p>
+          <p style="margin:6px 0"><span class="pill">#${p.shirt}</span><span class="pill">${esc(p.pos)}</span><span class="pill">${esc(p.mod)}</span></p>
           <p class="muted" style="margin:0">${team ? teamOf(team) : 'Ainda sem time'}</p>
         </div>
       </div>
-      <div class="stats">
-        <div class="stat"><b>⚽ ${s.gols}</b><span>Gols</span></div>
-        <div class="stat"><b>👟 ${s.ass}</b><span>Assistências</span></div>
-        <div class="stat"><b>🟨 ${s.am}</b><span>Amarelos</span></div>
-        <div class="stat"><b>🟥 ${s.ve}</b><span>Vermelhos</span></div>
-        <div class="stat"><b>${notaTxt(s.nota)}</b><span>Nota</span></div>
+      <div class="counts" style="margin-top:16px">
+        <div class="count"><b>${s.gols}</b><span>Gols</span></div>
+        <div class="count"><b>${s.ass}</b><span>Assistências</span></div>
+        <div class="count"><b>${s.am}</b><span>Amarelos</span></div>
+        <div class="count"><b>${s.ve}</b><span>Vermelhos</span></div>
       </div>
-      <p class="muted" style="margin-top:10px">Jogos: ${s.jogos}</p>
+      <p class="muted" style="margin-top:12px">Nota final: <b>${notaTxt(s.nota)}</b> · Jogos: ${s.jogos}</p>
     </div>`;
 }
 
@@ -455,8 +476,8 @@ $('formJog').onsubmit = async e => {
   e.preventDefault();
   if (me()) return toast('Este aparelho já tem cadastro.', 'bad');
   const pin = $('cPin').value.trim().toUpperCase();
-  if (!PINS.jogador.includes(pin)) return toast('PIN inválido para jogador.', 'bad');
-  if (db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
+  if (!TESTE && !PINS.jogador.includes(pin)) return toast('PIN inválido para jogador.', 'bad');
+  if (!TESTE && db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
   const nome = $('cNome').value.trim();
   if (!nome) return toast('Informe o nome completo.', 'bad');
   const temApelido = document.querySelector('input[name=apelidoSN]:checked').value === 'sim';
@@ -470,7 +491,7 @@ $('formJog').onsubmit = async e => {
     id: 'p' + Date.now().toString(36), pin, name: nome, nick: apelido || '',
     pos: $('cPos').value, mod: $('cMod').value, shirt: +$('cCamisa').value, photo, device: dev
   });
-  db.pinsUsed[pin] = dev;
+  if (pin) db.pinsUsed[pin] = dev;
   save();
   toast('Perfil criado!', 'ok');
   renderJogador();
@@ -499,8 +520,8 @@ $('formTec').onsubmit = async e => {
   e.preventDefault();
   if (me()) return toast('Este aparelho já tem cadastro.', 'bad');
   const pin = $('tPin').value.trim().toUpperCase();
-  if (!PINS.tecnico.includes(pin)) return toast('PIN inválido para técnico.', 'bad');
-  if (db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
+  if (!TESTE && !PINS.tecnico.includes(pin)) return toast('PIN inválido para técnico.', 'bad');
+  if (!TESTE && db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
   const team = $('tTime').value;
   if (db.techs.some(t => t.team === team)) return toast(`${teamOf(team)} já tem técnico.`, 'bad');
   const nome = $('tNome').value.trim();
@@ -510,7 +531,7 @@ $('formTec').onsubmit = async e => {
   if (f) photo = await compress(f);
   const dev = device();
   db.techs.push({ id: 't' + Date.now().toString(36), pin, name: nome, team, photo, device: dev });
-  db.pinsUsed[pin] = dev;
+  if (pin) db.pinsUsed[pin] = dev;
   save();
   toast('Técnico cadastrado!', 'ok');
   renderTecnico();
@@ -537,7 +558,7 @@ function drawMembers(team) {
     const inThis = mine.includes(p.id), inOther = theirs.includes(p.id);
     return `<button class="pick ${inThis ? 'on' : ''} ${inOther ? 'off' : ''}" data-pid="${p.id}" ${inOther ? 'disabled' : ''}>
       ${avatar(p, 'sm')}
-      <span>${esc(dname(p))}<small>#${p.shirt} · ${esc(p.pos)}${inThis ? ' · ✔ no time' : ''}</small></span>
+      <span>${esc(dname(p))}<small>#${p.shirt} · ${esc(p.pos)}${inThis ? ' · no time' : ''}</small></span>
     </button>`;
   }).join('') || '<p class="muted">Nenhum jogador cadastrado ainda.</p>';
 }
@@ -576,7 +597,7 @@ function drawRatings(team) {
   const rows = ids.map(findP).filter(Boolean);
   $('tRatings').innerHTML = rows.map(p => {
     const v = lf.techRatings && lf.techRatings[p.id] != null ? lf.techRatings[p.id] : 50;
-    return `<div class="row" style="margin:8px 0">
+    return `<div class="who" style="margin:8px 0">
       <span style="width:120px;font-weight:700">${esc(dname(p))}</span>
       <input type="range" min="0" max="100" value="${v}" data-rate="${p.id}" style="flex:1">
       <b style="width:36px;text-align:right">${v}</b></div>`;
@@ -601,7 +622,7 @@ function slotModal(team, i) {
     const id = b.dataset.id;
     if (id) {
       const j = t.slots.indexOf(id);
-      if (j >= 0) t.slots[j] = atual || null;   // troca com o titular
+      if (j >= 0) t.slots[j] = atual || null;
       t.slots[i] = id;
     } else {
       t.slots[i] = null;
@@ -680,13 +701,13 @@ $('formRef').onsubmit = e => {
   if (me()) return toast('Este aparelho já tem cadastro.', 'bad');
   if (db.ref) return toast('Já existe um árbitro cadastrado.', 'bad');
   const pin = $('rPin').value.trim().toUpperCase();
-  if (!PINS.arbitro.includes(pin)) return toast('PIN inválido para árbitro.', 'bad');
-  if (db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
+  if (!TESTE && !PINS.arbitro.includes(pin)) return toast('PIN inválido para árbitro.', 'bad');
+  if (!TESTE && db.pinsUsed[pin]) return toast('Este PIN já foi usado.', 'bad');
   const nome = $('rNome').value.trim();
   if (!nome) return toast('Informe seu nome.', 'bad');
   const dev = device();
   db.ref = { pin, name: nome, device: dev };
-  db.pinsUsed[pin] = dev;
+  if (pin) db.pinsUsed[pin] = dev;
   save();
   toast('Bem-vindo, árbitro!', 'ok');
   renderArbitro();
@@ -742,8 +763,7 @@ function snapshotRosters(m) {
 $('btnSalvarPre').onclick = () => {
   const info = readPre();
   if (!info.local) return toast('Informe o local.', 'bad');
-  const v = veredito(info);
-  info.veredito = v;
+  info.veredito = veredito(info);
   let m = cur();
   if (!m) {
     m = { id: 'm' + Date.now().toString(36), info, status: 'idle', current: 1, base: 0,
@@ -751,7 +771,7 @@ $('btnSalvarPre').onclick = () => {
     db.matches.push(m);
   }
   m.info = info;
-  if (m.status === 'idle') snapshotRosters(m);  // atualiza escalações enquanto não começou
+  if (m.status === 'idle') snapshotRosters(m);
   save();
   toast('Pré-jogo salvo.', 'ok');
   drawAll();
@@ -827,7 +847,7 @@ function drawRoster() {
   $('roster').innerHTML = ids.map(findP).filter(Boolean).map(p => {
     const gols = (m.events || []).filter(e => e.tipo === 'goal' && e.jog === p.id).length;
     return `<button class="pick" data-pid="${p.id}">${avatar(p, 'sm')}
-      <span>${esc(dname(p))}<small>#${p.shirt} · ${esc(p.pos)}${gols ? ' · ⚽ ' + gols : ''}</small></span></button>`;
+      <span>${esc(dname(p))}<small>#${p.shirt} · ${esc(p.pos)}${gols ? ' · gols ' + gols : ''}</small></span></button>`;
   }).join('') || `<p class="muted">Sem jogadores escalados para ${teamOf(refTeam)}.</p>`;
 }
 $('roster').onclick = e => {
@@ -841,9 +861,9 @@ function eventModal(team, pid) {
   openModal(`
     <h3>${esc(dname(p))} <span class="muted">#${p.shirt}</span></h3>
     <div class="row wrap" style="margin-bottom:12px">
-      <button class="btn-small" data-ev="goal">⚽ Gol</button>
-      <button class="btn-ghost" data-ev="yellow">🟨 Amarelo</button>
-      <button class="btn-danger" data-ev="red">🟥 Vermelho</button>
+      <button class="btn-small" data-ev="goal">Gol</button>
+      <button class="btn-ghost" data-ev="yellow">Amarelo</button>
+      <button class="btn-danger" data-ev="red">Vermelho</button>
     </div>
     <label>Minuto (opcional)<input id="mMin" type="number" min="0" max="200" placeholder="Vazio = minuto atual"></label>
     <button class="btn-ghost" id="mClose">Cancelar</button>`);
@@ -891,11 +911,11 @@ function addEvent({ tipo, team, jog, ass, min }) {
 function drawFeed() {
   const m = lastMatch();
   const list = m ? (m.events || []).slice().reverse() : [];
-  const ic = { goal:'⚽ Gol', yellow:'🟨 Amarelo', red:'🟥 Vermelho' };
+  const ic = { goal: IC.gol + ' Gol', yellow: IC.am + ' Amarelo', red: IC.ve + ' Vermelho' };
   $('feed').innerHTML = list.length ? list.map(e => `
     <div class="ev">
-      <div><b>${ic[e.tipo]}</b> · ${esc(dname(findP(e.jog) || { name: '—' }))}
-        ${e.ass ? `<span class="muted">(assist. ${esc(dname(findP(e.ass) || { name: '—' }))})</span>` : ''}
+      <div><b>${ic[e.tipo]}</b> · ${esc(nameOf(e.jog))}
+        ${e.ass ? `<span class="muted">(assist. ${esc(nameOf(e.ass))})</span>` : ''}
         <div class="muted" style="font-size:12px">${teamOf(e.team)}</div>
         ${e.note ? `<div class="note">${esc(e.note)}</div>` : ''}
       </div>
@@ -917,14 +937,15 @@ $('btnSalvarNotas').onclick = () => {
   save(); toast('Salvo.', 'ok');
 };
 
+const nameOf = id => { const p = findP(id); return p ? dname(p) : '—'; };
 function resumo(m) {
-  const linhas = (m.events || []).map(e => `${e.min}' ${e.tipo === 'goal' ? '⚽' : e.tipo === 'yellow' ? '🟨' : '🟥'} ${nameOf(e.jog)}${e.ass ? ' (assist. ' + nameOf(e.ass) + ')' : ''}`);
+  const sym = { goal: 'Gol', yellow: 'Amarelo', red: 'Vermelho' };
+  const linhas = (m.events || []).map(e => `${e.min}' ${sym[e.tipo]} · ${nameOf(e.jog)}${e.ass ? ' (assist. ' + nameOf(e.ass) + ')' : ''}`);
   const s = scoreOf(m);
   const data = m.info.date ? new Date(m.info.date).toLocaleString('pt-BR') : '-';
-  return `⚽ *JR — Súmula*\n📍 ${m.info.local} | ${m.info.tipo}\n📅 ${data}\n🔢 ${teamOf('A')} ${s.A} × ${s.B} ${teamOf('B')}\n\n` +
-    `${linhas.join('\n') || 'Sem lances'}\n${m.notes ? '\n📝 ' + m.notes : ''}${m.link ? '\n🎥 ' + m.link : ''}\n\n@jogorapido`;
+  return `*JR — Súmula*\n${m.info.local} | ${m.info.tipo}\n${data}\n${teamOf('A')} ${s.A} x ${s.B} ${teamOf('B')}\n\n` +
+    `${linhas.join('\n') || 'Sem lances'}\n${m.notes ? '\n' + m.notes : ''}${m.link ? '\n' + m.link : ''}\n\n@jogorapido`;
 }
-const nameOf = id => { const p = findP(id); return p ? dname(p) : '—'; };
 
 $('btnZap').onclick = () => {
   const m = lastMatch(); if (!m) return toast('Sem jogo para enviar.', 'bad');
@@ -954,8 +975,8 @@ function notifyCheck() {
   if (mine && mine.mod !== 'Os dois' && mine.mod !== m.info.mod) return;
   const e = fresh[fresh.length - 1];
   const txt = e.tipo === 'goal'
-    ? `⚽ Gol de ${nameOf(e.jog)}${e.ass ? ' · 👟 ' + nameOf(e.ass) : ' · sem assistência'} (${e.min}')`
-    : `${e.tipo === 'yellow' ? '🟨 Amarelo' : '🟥 Vermelho'} para ${nameOf(e.jog)} (${e.min}')`;
+    ? `Gol de ${nameOf(e.jog)}${e.ass ? ' · assistência: ' + nameOf(e.ass) : ' · sem assistência'} (${e.min}')`
+    : `${e.tipo === 'yellow' ? 'Amarelo' : 'Vermelho'} para ${nameOf(e.jog)} (${e.min}')`;
   showNotify(txt);
 }
 let notifyTimer = null;
@@ -984,7 +1005,7 @@ function renderTorcida() {
     $('fStatus').textContent = 'Você já votou nesta partida. Obrigado!';
   } else {
     const s = scoreOf(lf);
-    $('fStatus').textContent = `Partida encerrada: ${teamOf('A')} ${s.A} × ${s.B} ${teamOf('B')}. Você assistiu o jogo?`;
+    $('fStatus').textContent = `Partida encerrada: ${teamOf('A')} ${s.A} x ${s.B} ${teamOf('B')}. Você assistiu o jogo?`;
     $('fQ').classList.remove('hidden');
   }
   renderMural();
@@ -1007,7 +1028,7 @@ $('btnSim').onclick = () => {
   voteSel = null;
   const ids = [...lf.roster.A, ...lf.roster.B].map(findP).filter(Boolean);
   $('fGrid').innerHTML = ids.map(p => {
-    const b = badges(statsOf(p.id)) || '';
+    const b = badges(statsOf(p.id));
     return `<button class="pick" data-pid="${p.id}">${avatar(p, 'sm')}<span>${esc(dname(p))}<small>${teamOf(lf.roster.A.includes(p.id) ? 'A' : 'B')} · #${p.shirt}</small><small>${b}</small></span></button>`;
   }).join('') || '<p class="muted">Sem jogadores nesta partida.</p>';
 };
@@ -1066,3 +1087,22 @@ $('btnBack').onclick = () => { location.hash = '#/inicio'; };
 window.addEventListener('hashchange', route);
 route();
 if (cur() && cur().status === 'live') startTicker();
+
+/* ===================== FERRAMENTAS DE TESTE ===================== */
+if (TESTE) {
+  $('btnTeste').classList.remove('hidden');
+  $('btnTeste').onclick = () => {
+    localStorage.removeItem(DEVK);
+    location.hash = '#/inicio';
+    location.reload();
+  };
+  $('btnZerarTudo').classList.remove('hidden');
+  $('btnZerarTudo').onclick = () => {
+    if (!confirm('Apagar TODOS os dados de teste?')) return;
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(DEVK);
+    localStorage.removeItem(SEENK);
+    location.hash = '#/inicio';
+    location.reload();
+  };
+}
