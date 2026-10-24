@@ -15,8 +15,10 @@
     <div><h1>Jogo Rápido</h1></div>
   </div>
   <div class="top-right">
-    <span id="liveBadge" class="live hidden">🔴 AO VIVO</span>
-    <button id="btnTeste" class="btn-ghost hidden">Trocar usuário</button>
+    <button id="liveBadge" class="live-btn hidden">🔴 AO VIVO · ver jogo</button>
+    <select id="whoSel" class="sel hidden"></select>
+    <button id="btnSeed" class="btn-small hidden">Criar elenco de teste</button>
+    <button id="btnTeste" class="btn-ghost hidden">Novo aparelho</button>
     <button id="btnZerarTudo" class="btn-danger hidden">Zerar tudo</button>
     <button id="btnBack" class="btn-ghost hidden">← Voltar ao Início</button>
   </div>
@@ -119,12 +121,14 @@
 
     <div id="tecBoard" class="stack hidden">
       <div class="card toolbar">
-        <div>
+        <div style="flex:1;min-width:220px">
           <h2 id="tTitulo"></h2>
-          <p class="muted">Quem tem a posição certa entra automaticamente. Você pode trocar tocando na vaga.</p>
+          <label>Nome do time<input id="tNomeTime" maxlength="30" placeholder="Ex.: Amigos do Campinho"></label>
+          <p class="muted">Quem tem a posição certa entra automaticamente. Toque na vaga para trocar.</p>
         </div>
         <div class="row wrap">
           <select id="tFormation" class="sel"></select>
+          <button class="btn-ghost" id="btnEmbaralhar">Embaralhar (teste)</button>
           <button class="btn-danger" id="btnZerar">Zerar escalação</button>
         </div>
       </div>
@@ -195,9 +199,9 @@
 
       <div class="card center">
         <div class="placar">
-          <div><span class="muted">Time A</span><b id="placarA">0</b></div>
+          <div><span class="muted" id="lblA">Time A</span><b id="placarA">0</b></div>
           <span class="x">×</span>
-          <div><span class="muted">Time B</span><b id="placarB">0</b></div>
+          <div><span class="muted" id="lblB">Time B</span><b id="placarB">0</b></div>
         </div>
         <div class="clock" id="clock">00:00</div>
         <p class="muted" id="halfLabel">Aguardando início</p>
@@ -211,11 +215,13 @@
 
       <div class="card">
         <h3>Lançar lance</h3>
+        <p class="muted">1. Escolha o time. 2. Toque no jogador. 3. Escolha Gol, Amarelo ou Vermelho.</p>
         <div class="row wrap">
           <button class="btn-small" id="bTimeA">Time A</button>
           <button class="btn-ghost" id="bTimeB">Time B</button>
         </div>
         <div id="roster" class="picks" style="margin-top:12px"></div>
+        <button class="btn-ghost hidden" id="btnSimular" style="margin-top:12px">▶ Simular lances (teste)</button>
       </div>
 
       <div class="card">
@@ -227,9 +233,9 @@
       </div>
 
       <div class="card">
-        <h3>Parecer e resenha</h3>
-        <label>Parecer do árbitro<textarea id="notas" rows="3" maxlength="800"></textarea></label>
-        <label>Link da live ou entrevista<input id="link" type="url" placeholder="https://"></label>
+        <h3>Observações da partida</h3>
+        <label>O que aconteceu (texto livre)<textarea id="notas" rows="3" maxlength="800"></textarea></label>
+        <label>Link de vídeo ou entrevista<input id="link" type="url" placeholder="https://"></label>
         <div class="row wrap">
           <button class="btn-small" id="btnSalvarNotas">Salvar</button>
           <button class="btn-ghost" id="btnZap">Enviar no WhatsApp</button>

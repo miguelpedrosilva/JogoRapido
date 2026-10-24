@@ -14,7 +14,6 @@ const BANNED = ['idiota','burro','imbecil','otario','lixo','merda','porra','cara
 const POS = ['Goleiro','Zagueiro','Lateral direito','Lateral esquerdo','Volante','Meia',
              'Meia-atacante','Ponta esquerda','Ponta direita','Centroavante'];
 
-/* Vagas que cada posição pode ocupar, em ordem de preferência */
 const COMPAT = {
   'Goleiro':          ['GOL'],
   'Zagueiro':         ['ZAG','LD','LE','VOL'],
@@ -28,7 +27,6 @@ const COMPAT = {
   'Centroavante':     ['CA','MAT','PE','PD']
 };
 
-/* Linhas de cada esquema, do gol para o ataque. Todas somam 11 */
 const FORM = {
   '4-3-3':   [['GOL'],['LD','ZAG','ZAG','LE'],['VOL','MEI','MEI'],['PE','CA','PD']],
   '4-4-2':   [['GOL'],['LD','ZAG','ZAG','LE'],['PE','VOL','VOL','PD'],['CA','CA']],
@@ -39,7 +37,7 @@ const FORM = {
 
 const PAGE_TITLES = { inicio:'Tela Inicial', jogador:'Jogador', tecnico:'Técnico', arbitro:'Árbitro', torcida:'Torcida & Votação' };
 
-/* ===================== ÍCONES (SVG, funcionam em qualquer celular) ===================== */
+/* ===================== ÍCONES ===================== */
 const IC = {
   gol: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="#111" stroke-width="1.5"/><polygon points="12,7 16,10 14.5,15 9.5,15 8,10" fill="#111"/></svg>',
   ass: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 15 L3 7 L8 7 L9 11 L15 12 L20 12 L21 16 L21 18 L3 18 Z" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>',
@@ -58,14 +56,32 @@ function badges(s) {
 /* ===================== UTILITÁRIOS ===================== */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pick = a => a[Math.floor(Math.random() * a.length)];
 const dname = p => p.nick || p.name;
 const initial = p => (dname(p) || '?').trim().charAt(0).toUpperCase();
 const fmt = s => { s = Math.floor(s); return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0'); };
 const avatar = (p, cls = '') => p.photo
   ? `<img class="av ${cls}" src="${p.photo}" alt="">`
   : `<span class="av ${cls}">${esc(initial(p))}</span>`;
-const teamOf = t => 'Time ' + t;
 const otherTeam = t => t === 'A' ? 'B' : 'A';
+const teamOf = t => (db.teams[t] && db.teams[t].nome) || 'Time ' + t;
+
+/* Foto fictícia: silhueta com camisa e número (gerada na hora, sem internet) */
+const PELES = ['#f1c27d','#e0ac69','#c68642','#8d5524','#ffdbac'];
+const CABELOS = ['#1c1917','#3f2a1d','#78350f','#0f0f0f','#a16207'];
+function fakeFoto(num, cor) {
+  const pele = pick(PELES), cab = pick(CABELOS);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="#1e293b"/>
+    <path d="M14 100 Q16 64 50 62 Q84 64 86 100Z" fill="${cor}"/>
+    <rect x="44" y="52" width="12" height="12" fill="${pele}"/>
+    <circle cx="50" cy="38" r="17" fill="${pele}"/>
+    <path d="M33 36 Q50 12 67 36 Q62 24 50 24 Q38 24 33 36Z" fill="${cab}"/>
+    <circle cx="44" cy="39" r="2" fill="#111"/><circle cx="56" cy="39" r="2" fill="#111"/>
+    ${num ? `<text x="50" y="92" font-size="18" text-anchor="middle" fill="#fff" font-family="Arial" font-weight="bold">${num}</text>` : ''}
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
 
 function toast(msg, type = '') {
   const t = document.createElement('div');
@@ -95,17 +111,17 @@ function compress(file) {
 }
 
 /* ===================== BANCO DE DADOS ===================== */
-function emptyTeam() { return { formation: '4-3-3', slots: Array(11).fill(null), members: [] }; }
+function emptyTeam() { return { formation: '4-3-3', slots: Array(11).fill(null), members: [], nome: '' }; }
 function defaultDb() {
   return {
-    players: [],          // {id, pin, name, nick, pos, mod, shirt, photo, device}
-    techs: [],            // {id, pin, name, team, photo, device}
-    ref: null,            // {pin, name, device}
-    fans: [],             // {id, name, device}
-    pinsUsed: {},         // pin -> device
+    players: [],
+    techs: [],
+    ref: null,
+    fans: [],
+    pinsUsed: {},
     teams: { A: emptyTeam(), B: emptyTeam() },
     matches: [],
-    votes: {},            // matchId -> { device: {player, score} }
+    votes: {},
     comments: [],
     tutorialDone: false
   };
@@ -133,7 +149,6 @@ function device() {
   return d;
 }
 
-/* Quem é este aparelho? */
 function me() {
   const d = device();
   const p = db.players.find(x => x.device === d); if (p) return { role: 'jogador', rec: p };
@@ -144,6 +159,7 @@ function me() {
 }
 const ROLE_NAME = { jogador:'jogador', tecnico:'técnico', arbitro:'árbitro', torcedor:'torcedor' };
 const findP = id => db.players.find(p => p.id === id);
+const nameOf = id => { const p = findP(id); return p ? dname(p) : '—'; };
 
 /* ===================== ESQUEMAS E VAGAS ===================== */
 function slotsOf(f) {
@@ -161,7 +177,7 @@ function placeAuto(team, p) {
     const i = codes.findIndex((cc, k) => cc === c && !t.slots[k]);
     if (i >= 0) { t.slots[i] = p.id; return true; }
   }
-  return false; // sem vaga compatível: fica no banco
+  return false;
 }
 function reflow(team) {
   const t = db.teams[team];
@@ -188,7 +204,6 @@ function scoreOf(m) {
   return s;
 }
 
-/* Estatísticas e notas */
 function statsOf(pid) {
   const s = { gols: 0, ass: 0, am: 0, ve: 0, jogos: 0, notaTec: null, notaFan: null, nota: null };
   db.matches.forEach(m => {
@@ -228,7 +243,6 @@ function goleiros() {
     .filter(x => x.p);
 }
 
-/* Pontuação do craque do jogo */
 const PONTOS = { goal: 3, yellow: -1, red: -3 };
 function craqueDoJogo(m) {
   if (!m || !m.events || !m.events.length) return null;
@@ -246,6 +260,7 @@ function craqueDoJogo(m) {
 /* ===================== ROTAS ===================== */
 let homeTab = 'entrar';
 let voteSel = null;
+let refTeam = 'A';
 
 function route() {
   const h = location.hash.replace('#/', '') || 'inicio';
@@ -289,7 +304,7 @@ function renderStatusCard() {
   const sc = m ? scoreOf(m) : null;
   $('matchStatus').innerHTML = `<h3>Jogo atual</h3><p><b>${st}</b></p>` +
     (m ? `<p class="muted">${esc(m.info.local)} · ${esc(m.info.tipo)} · ${esc(m.info.mod)}</p>
-          <p><b>${teamOf('A')} ${sc.A} × ${sc.B} ${teamOf('B')}</b></p>` : '');
+          <p><b>${esc(teamOf('A'))} ${sc.A} × ${sc.B} ${esc(teamOf('B'))}</b></p>` : '');
 }
 
 function renderQuem() {
@@ -327,6 +342,7 @@ function pod(list, valor, icone, rotulo) {
   return `<div class="podium">${ord.map(r => {
     const first = list.indexOf(r) === 0;
     return `<div class="pod ${first ? 'first' : ''}">
+      <div>${avatar(r.p, 'sm')}</div>
       <div>${icone}</div>
       <b>${esc(dname(r.p))}</b>
       <div class="n">${valor(r)}</div>
@@ -413,7 +429,7 @@ function renderEscalacao() {
     return `<div class="card">
       <div class="lineup-title">
         ${tec ? avatar(tec, 'sm') : '<span class="av sm">?</span>'}
-        <div><h3 style="margin:0">${teamOf(t)} · ${tm.formation}</h3>
+        <div><h3 style="margin:0">${esc(teamOf(t))} · ${tm.formation}</h3>
         <small>Técnico: ${esc(tec ? tec.name : 'ainda não cadastrado')}</small></div>
       </div>
       <div class="pitch-esc">${itens || '<p style="position:absolute;top:45%;width:100%;text-align:center;color:#fff">Escalação ainda não montada</p>'}</div>
@@ -459,7 +475,7 @@ function renderPerfil(rec) {
           <h2 style="margin:0">${esc(dname(p))}</h2>
           ${p.nick ? `<p class="muted" style="margin:2px 0">${esc(p.name)}</p>` : ''}
           <p style="margin:6px 0"><span class="pill">#${p.shirt}</span><span class="pill">${esc(p.pos)}</span><span class="pill">${esc(p.mod)}</span></p>
-          <p class="muted" style="margin:0">${team ? teamOf(team) : 'Ainda sem time'}</p>
+          <p class="muted" style="margin:0">${team ? esc(teamOf(team)) : 'Ainda sem time'}</p>
         </div>
       </div>
       <div class="counts" style="margin-top:16px">
@@ -511,7 +527,7 @@ function renderTecnico() {
   }
   $('tTime').innerHTML = ['A','B'].map(t => {
     const ocupado = db.techs.some(x => x.team === t);
-    return `<option value="${t}" ${ocupado ? 'disabled' : ''}>${teamOf(t)}${ocupado ? ' (já tem técnico)' : ''}</option>`;
+    return `<option value="${t}" ${ocupado ? 'disabled' : ''}>${esc(teamOf(t))}${ocupado ? ' (já tem técnico)' : ''}</option>`;
   }).join('');
   $('formTec').classList.remove('hidden');
 }
@@ -541,6 +557,7 @@ function drawTecBoard(team) {
   const t = db.teams[team];
   const tec = db.techs.find(x => x.team === team);
   $('tTitulo').textContent = `${teamOf(team)} · Técnico: ${tec ? tec.name : ''}`;
+  $('tNomeTime').value = t.nome || '';
   if (!$('tFormation').options.length) {
     $('tFormation').innerHTML = Object.keys(FORM).map(f => `<option>${f}</option>`).join('');
   }
@@ -674,10 +691,22 @@ $('tRatings').oninput = e => {
   e.target.nextElementSibling.textContent = e.target.value;
   save();
 };
+$('tNomeTime').onchange = () => {
+  const r = me(); if (!r || r.role !== 'tecnico') return;
+  db.teams[r.rec.team].nome = $('tNomeTime').value.trim();
+  save(); drawTecBoard(r.rec.team);
+};
+$('btnEmbaralhar').onclick = () => {
+  const r = me(); if (!r || r.role !== 'tecnico') return;
+  const team = r.rec.team;
+  const f = pick(Object.keys(FORM));
+  db.teams[team].formation = f;
+  db.teams[team].members.sort(() => Math.random() - 0.5);
+  reflow(team); save(); drawTecBoard(team);
+  toast('Esquema ' + f + ' embaralhado.', 'ok');
+};
 
 /* ===================== ÁRBITRO ===================== */
-let refTeam = 'A';
-
 function renderArbitro() {
   const r = me();
   $('refAviso').classList.add('hidden');
@@ -777,7 +806,6 @@ $('btnSalvarPre').onclick = () => {
   drawAll();
 };
 
-/* Cronômetro */
 function startPlay() {
   const m = cur();
   if (!m) return toast('Salve o pré-jogo primeiro.', 'bad');
@@ -807,7 +835,7 @@ function encerrar() {
   if (m.status === 'live') m.base = elapsedCur(m);
   if (m.status !== 'break' && m.current === 1) m.h1 = m.base;
   m.status = 'finished'; m.startedAt = null;
-  save(); stopTicker(); drawAll();
+  save(); stopTicker(); stopSim(); drawAll();
   toast('Partida encerrada.', 'ok');
 }
 $('bPlay').onclick = startPlay;
@@ -832,9 +860,12 @@ function drawScore() {
   const m = lastMatch(); const s = m ? scoreOf(m) : { A: 0, B: 0 };
   $('placarA').textContent = s.A;
   $('placarB').textContent = s.B;
+  $('lblA').textContent = teamOf('A');
+  $('lblB').textContent = teamOf('B');
+  $('bTimeA').textContent = teamOf('A');
+  $('bTimeB').textContent = teamOf('B');
 }
 
-/* Escalações do time selecionado para lançar lances */
 $('bTimeA').onclick = () => { refTeam = 'A'; drawRoster(); };
 $('bTimeB').onclick = () => { refTeam = 'B'; drawRoster(); };
 
@@ -843,12 +874,14 @@ function drawRoster() {
   $('bTimeA').className = refTeam === 'A' ? 'btn-small' : 'btn-ghost';
   $('bTimeB').className = refTeam === 'B' ? 'btn-small' : 'btn-ghost';
   if (!m || !m.roster) { $('roster').innerHTML = '<p class="muted">Salve o pré-jogo para carregar as escalações.</p>'; return; }
+  const tec = db.techs.find(x => x.team === refTeam);
+  const cab = `<p class="muted" style="grid-column:1/-1;margin:0">${esc(teamOf(refTeam))} · técnico: ${esc(tec ? tec.name : '—')}</p>`;
   const ids = m.roster[refTeam];
-  $('roster').innerHTML = ids.map(findP).filter(Boolean).map(p => {
+  $('roster').innerHTML = cab + ids.map(findP).filter(Boolean).map(p => {
     const gols = (m.events || []).filter(e => e.tipo === 'goal' && e.jog === p.id).length;
     return `<button class="pick" data-pid="${p.id}">${avatar(p, 'sm')}
       <span>${esc(dname(p))}<small>#${p.shirt} · ${esc(p.pos)}${gols ? ' · gols ' + gols : ''}</small></span></button>`;
-  }).join('') || `<p class="muted">Sem jogadores escalados para ${teamOf(refTeam)}.</p>`;
+  }).join('');
 }
 $('roster').onclick = e => {
   const b = e.target.closest('[data-pid]'); if (!b) return;
@@ -916,7 +949,7 @@ function drawFeed() {
     <div class="ev">
       <div><b>${ic[e.tipo]}</b> · ${esc(nameOf(e.jog))}
         ${e.ass ? `<span class="muted">(assist. ${esc(nameOf(e.ass))})</span>` : ''}
-        <div class="muted" style="font-size:12px">${teamOf(e.team)}</div>
+        <div class="muted" style="font-size:12px">${esc(teamOf(e.team))}</div>
         ${e.note ? `<div class="note">${esc(e.note)}</div>` : ''}
       </div>
       <small>${e.min}'</small>
@@ -937,7 +970,6 @@ $('btnSalvarNotas').onclick = () => {
   save(); toast('Salvo.', 'ok');
 };
 
-const nameOf = id => { const p = findP(id); return p ? dname(p) : '—'; };
 function resumo(m) {
   const sym = { goal: 'Gol', yellow: 'Amarelo', red: 'Vermelho' };
   const linhas = (m.events || []).map(e => `${e.min}' ${sym[e.tipo]} · ${nameOf(e.jog)}${e.ass ? ' (assist. ' + nameOf(e.ass) + ')' : ''}`);
@@ -1029,7 +1061,7 @@ $('btnSim').onclick = () => {
   const ids = [...lf.roster.A, ...lf.roster.B].map(findP).filter(Boolean);
   $('fGrid').innerHTML = ids.map(p => {
     const b = badges(statsOf(p.id));
-    return `<button class="pick" data-pid="${p.id}">${avatar(p, 'sm')}<span>${esc(dname(p))}<small>${teamOf(lf.roster.A.includes(p.id) ? 'A' : 'B')} · #${p.shirt}</small><small>${b}</small></span></button>`;
+    return `<button class="pick" data-pid="${p.id}">${avatar(p, 'sm')}<span>${esc(dname(p))}<small>${esc(teamOf(lf.roster.A.includes(p.id) ? 'A' : 'B'))} · #${p.shirt}</small><small>${b}</small></span></button>`;
   }).join('') || '<p class="muted">Sem jogadores nesta partida.</p>';
 };
 $('btnNao').onclick = () => toast('Só quem assistiu o jogo pode votar.', 'bad');
@@ -1082,13 +1114,101 @@ $('btnTut').onclick = () => {
 $('btnSkip').onclick = () => { db.tutorialDone = true; save(); renderInicio(); };
 $('brandHome').onclick = () => { location.hash = '#/inicio'; };
 $('btnBack').onclick = () => { location.hash = '#/inicio'; };
+$('liveBadge').onclick = () => {
+  homeTab = 'escalacao';
+  location.hash = '#/inicio';
+  route();
+};
 
-/* ===================== INICIALIZAÇÃO ===================== */
-window.addEventListener('hashchange', route);
-route();
-if (cur() && cur().status === 'live') startTicker();
+/* ===================== ELENCO E FERRAMENTAS DE TESTE ===================== */
+const NOMES = ['Lucas','Rafael','Bruno','Gustavo','Felipe','Diego','Thiago','Matheus','Caio','Vinicius','João','Pedro','Gabriel','Leandro','Renan','Igor','Eduardo','Murilo','Douglas','Wesley','Rodrigo','Kauã'];
+const SOBRENOMES = ['Silva','Souza','Oliveira','Costa','Pereira','Lima','Gomes','Ribeiro','Almeida','Nascimento','Carvalho','Rocha','Dias','Barbosa','Moreira','Teixeira','Mendes','Araújo','Cardoso','Correia','Melo','Freitas'];
+const POS_TIME = ['Goleiro','Zagueiro','Zagueiro','Lateral direito','Lateral esquerdo','Volante','Volante','Meia','Meia-atacante','Ponta esquerda','Centroavante'];
+const COR_TIME = { A: '#2563eb', B: '#16a34a' };
 
-/* ===================== FERRAMENTAS DE TESTE ===================== */
+function seedElenco() {
+  if (!confirm('Criar elenco de teste? Use só uma vez por aparelho.')) return;
+  const stamp = Date.now().toString(36);
+  ['A','B'].forEach(team => {
+    const t = db.teams[team];
+    POS_TIME.forEach((pos, k) => {
+      const id = 'tp' + team + k + stamp;
+      const nome = pick(NOMES) + ' ' + pick(SOBRENOMES);
+      const shirt = k * 2 + (team === 'B' ? 2 : 1);
+      db.players.push({
+        id, pin: '', name: nome, nick: k % 3 === 0 ? nome.split(' ')[0] : '',
+        pos, mod: pick(['Campo','Quadra','Os dois']),
+        shirt, photo: fakeFoto(shirt, COR_TIME[team]), device: 'seed_' + id
+      });
+      t.members.push(id);
+      placeAuto(team, db.players[db.players.length - 1]);
+    });
+    if (!t.nome) t.nome = team === 'A' ? 'Time Azul' : 'Time Verde';
+  });
+  ['A','B'].forEach(team => {
+    if (db.techs.some(x => x.team === team)) return;
+    db.techs.push({ id: 'st' + team + stamp, pin: '', name: 'Técnico ' + team + ' ' + pick(SOBRENOMES),
+                    team, photo: fakeFoto(null, '#0f172a'), device: 'seed_tec_' + team + stamp });
+  });
+  if (!db.ref) db.ref = { pin: '', name: 'Árbitro Teste', device: 'seed_ref_' + stamp };
+  for (let i = 1; i <= 5; i++) {
+    db.fans.push({ id: 'sf' + i + stamp, name: 'Torcedor ' + i + ' ' + pick(NOMES),
+                   photo: fakeFoto(null, pick(['#7c3aed','#db2777','#ea580c','#0891b2','#65a30d'])),
+                   device: 'seed_fan_' + i + stamp });
+  }
+  save(); refreshWho(); renderInicio();
+  toast('Elenco de teste criado!', 'ok');
+}
+
+function refreshWho() {
+  const opts = [
+    ...db.players.map(p => ({ d: p.device, l: '⚽ ' + dname(p) })),
+    ...db.techs.map(t => ({ d: t.device, l: '📋 ' + t.name + ' (' + teamOf(t.team) + ')' })),
+    ...(db.ref ? [{ d: db.ref.device, l: '🟨 ' + db.ref.name }] : []),
+    ...db.fans.map(f => ({ d: f.device, l: '⭐ ' + f.name }))
+  ].filter(o => o.d);
+  const atual = device();
+  $('whoSel').innerHTML = '<option value="">Entrar como…</option>' +
+    opts.map(o => `<option value="${esc(o.d)}" ${o.d === atual ? 'selected' : ''}>${esc(o.l)}</option>`).join('');
+}
+$('whoSel').onchange = () => {
+  const v = $('whoSel').value; if (!v) return;
+  localStorage.setItem(DEVK, v);
+  location.hash = '#/inicio';
+  location.reload();
+};
+
+let simTimer = null;
+function simStep() {
+  const m = cur();
+  if (!m || m.status !== 'live' || !m.roster) return stopSim();
+  const team = Math.random() < 0.5 ? 'A' : 'B';
+  const ids = m.roster[team];
+  if (!ids || !ids.length) return;
+  const jog = pick(ids);
+  const s = Math.random();
+  if (s < 0.55) {
+    const outros = ids.filter(x => x !== jog);
+    const ass = Math.random() < 0.6 && outros.length ? pick(outros) : null;
+    addEvent({ tipo: 'goal', team, jog, ass, min: '' });
+  } else if (s < 0.85) {
+    addEvent({ tipo: 'yellow', team, jog, ass: null, min: '' });
+  } else if (s < 0.9) {
+    addEvent({ tipo: 'red', team, jog, ass: null, min: '' });
+  }
+}
+function stopSim() {
+  clearInterval(simTimer); simTimer = null;
+  $('btnSimular').textContent = '▶ Simular lances (teste)';
+}
+$('btnSimular').onclick = () => {
+  if (simTimer) return stopSim();
+  const m = cur();
+  if (!m || m.status !== 'live') return toast('Inicie o jogo antes de simular.', 'bad');
+  simTimer = setInterval(simStep, 3000);
+  $('btnSimular').textContent = '⏹ Parar simulação';
+};
+
 if (TESTE) {
   $('btnTeste').classList.remove('hidden');
   $('btnTeste').onclick = () => {
@@ -1105,4 +1225,16 @@ if (TESTE) {
     location.hash = '#/inicio';
     location.reload();
   };
+  $('btnSeed').classList.remove('hidden');
+  $('btnSeed').onclick = seedElenco;
+  $('whoSel').classList.remove('hidden');
+  $('btnSimular').classList.remove('hidden');
+} else {
+  $('btnEmbaralhar').classList.add('hidden');
 }
+
+/* ===================== INICIALIZAÇÃO ===================== */
+window.addEventListener('hashchange', route);
+refreshWho();
+route();
+if (cur() && cur().status === 'live') startTicker();
