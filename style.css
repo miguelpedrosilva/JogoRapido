@@ -156,6 +156,8 @@ button:active { transform: scale(.98); }
 }
 .ev small { color: var(--muted); font-family: ui-monospace, monospace; white-space: nowrap; }
 .note { color: var(--amber); font-size: 12px; margin-top: 4px; }
+.ev .row { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ev .row button { padding: 5px 10px; font-size: 12px; }
 
 /* ---------- Avatares e seleção ---------- */
 .av {

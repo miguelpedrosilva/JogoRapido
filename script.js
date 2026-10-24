@@ -952,9 +952,83 @@ function drawFeed() {
         <div class="muted" style="font-size:12px">${esc(teamOf(e.team))}</div>
         ${e.note ? `<div class="note">${esc(e.note)}</div>` : ''}
       </div>
-      <small>${e.min}'</small>
+      <div class="row">
+        <small>${e.min}'</small>
+        <button class="btn-ghost" data-edit="${e.id}">Editar</button>
+        <button class="btn-danger" data-del="${e.id}">Apagar</button>
+      </div>
     </div>`).join('') : '<p class="muted">Nenhum lance registrado ainda.</p>';
 }
+
+/* ===================== EDITAR E APAGAR LANCES ===================== */
+function findEvent(id) {
+  const m = lastMatch();
+  return { m, e: m ? (m.events || []).find(x => x.id === id) : null };
+}
+
+function removeEvent(id) {
+  const { m, e } = findEvent(id);
+  if (!e) return;
+  if (!confirm(`Apagar este lance (${e.min}' · ${nameOf(e.jog)})?`)) return;
+  m.events = m.events.filter(x => x.id !== id);
+  save(); drawAll(); toast('Lance apagado.', 'ok');
+}
+
+function editModal(id) {
+  const { m, e } = findEvent(id);
+  if (!e) return;
+  const roster = m.roster[e.team].map(findP).filter(Boolean);
+  const opts = (arr, sel, vazio) => (vazio ? `<option value="">${vazio}</option>` : '') +
+    arr.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(dname(p))} #${p.shirt}</option>`).join('');
+  openModal(`
+    <h3>Editar lance</h3>
+    <label>Tipo
+      <select id="eTipo">
+        <option value="goal" ${e.tipo === 'goal' ? 'selected' : ''}>Gol</option>
+        <option value="yellow" ${e.tipo === 'yellow' ? 'selected' : ''}>Amarelo</option>
+        <option value="red" ${e.tipo === 'red' ? 'selected' : ''}>Vermelho</option>
+      </select>
+    </label>
+    <label>Jogador<select id="eJog">${opts(roster, e.jog)}</select></label>
+    <label>Assistência (só gol)<select id="eAss">${opts(roster.filter(p => p.id !== e.jog), e.ass, 'Sem assistência')}</select></label>
+    <label>Minuto<input id="eMin" type="number" min="0" max="200" value="${e.min}"></label>
+    <div class="row wrap">
+      <button class="btn-small" id="eSave">Salvar</button>
+      <button class="btn-danger" id="eDel">Apagar</button>
+      <button class="btn-ghost" id="mClose">Cancelar</button>
+    </div>`);
+  $('eSave').onclick = () => {
+    const tipo = $('eTipo').value;
+    const jog = $('eJog').value;
+    let ass = tipo === 'goal' ? ($('eAss').value || null) : null;
+    if (ass === jog) ass = null;
+    const min = parseInt($('eMin').value, 10);
+    if (isNaN(min) || min < 0) return toast('Minuto inválido.', 'bad');
+    Object.assign(e, { tipo, jog, ass, min });
+    save(); closeModal(); drawAll(); toast('Lance atualizado.', 'ok');
+  };
+  $('eDel').onclick = () => { closeModal(); removeEvent(id); };
+  $('mClose').onclick = closeModal;
+}
+
+$('feed').onclick = e => {
+  const ed = e.target.closest('[data-edit]');
+  const dl = e.target.closest('[data-del]');
+  if (ed) return editModal(ed.dataset.edit);
+  if (dl) return removeEvent(dl.dataset.del);
+};
+
+$('btnGolTeste').onclick = () => {
+  const m = cur();
+  if (!m || !m.roster) return toast('Inicie o jogo antes.', 'bad');
+  const team = pick(['A', 'B']);
+  const ids = m.roster[team];
+  if (!ids || !ids.length) return toast('Sem jogadores neste time.', 'bad');
+  const jog = pick(ids);
+  const outros = ids.filter(x => x !== jog);
+  const ass = outros.length && Math.random() < 0.6 ? pick(outros) : null;
+  addEvent({ tipo: 'goal', team, jog, ass, min: '' });
+};
 
 $('btnDesfazer').onclick = () => {
   const m = cur(); if (!m || !m.events.length) return;
@@ -1229,6 +1303,7 @@ if (TESTE) {
   $('btnSeed').onclick = seedElenco;
   $('whoSel').classList.remove('hidden');
   $('btnSimular').classList.remove('hidden');
+  $('btnGolTeste').classList.remove('hidden');
 } else {
   $('btnEmbaralhar').classList.add('hidden');
 }
