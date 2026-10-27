@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com wss://*.googleapis.com; base-uri 'none'; form-action 'self'">
   <title>JR — Tela Inicial</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -15,7 +16,8 @@
     <div><h1>Jogo Rápido</h1></div>
   </div>
   <div class="top-right">
-    <button id="liveBadge" class="live-btn hidden">🔴 AO VIVO · ver jogo</button>
+    <button id="liveBadge" class="live-btn hidden"><span class="dot-live"></span>AO VIVO · ver jogo</button>
+    <button id="btnTheme" class="btn-ghost">Claro/escuro</button>
     <select id="whoSel" class="sel hidden"></select>
     <button id="btnSeed" class="btn-small hidden">Criar elenco de teste</button>
     <button id="btnTeste" class="btn-ghost hidden">Novo aparelho</button>
@@ -54,10 +56,10 @@
         <p class="muted">Escolha o seu perfil.</p>
       </div>
       <div class="menu">
-        <a class="card-menu" href="#/jogador"><span class="ico">⚽</span><b>Jogador</b><small>Cadastro e perfil com suas estatísticas.</small></a>
-        <a class="card-menu" href="#/tecnico"><span class="ico">📋</span><b>Técnico</b><small>Cadastre seu time e monte a escalação.</small></a>
-        <a class="card-menu" href="#/arbitro"><span class="ico">🎩</span><b>Árbitro</b><small>Pré-jogo, cronômetro e lances.</small></a>
-        <a class="card-menu" href="#/torcida"><span class="ico">📈</span><b>Torcida & Votação</b><small>Veja a partida e dê sua nota.</small></a>
+        <a class="card-menu" href="#/jogador"><span class="ico-big" data-ic="jog"></span><b>Jogador</b><small>Cadastro e perfil com suas estatísticas.</small></a>
+        <a class="card-menu" href="#/tecnico"><span class="ico-big" data-ic="tec"></span><b>Técnico</b><small>Monte a escalação do seu time.</small></a>
+        <a class="card-menu" href="#/arbitro"><span class="ico-big" data-ic="arb"></span><b>Árbitro</b><small>Placar, cronômetro e lances.</small></a>
+        <a class="card-menu" href="#/torcida"><span class="ico-big" data-ic="vot"></span><b>Torcida & Votação</b><small>Veja os times e vote nos jogadores.</small></a>
       </div>
       <div class="card" id="matchStatus"></div>
     </div>
@@ -73,7 +75,7 @@
 
     <form id="formJog" class="card narrow hidden">
       <h2>Cadastro do jogador</h2>
-      <label>PIN de acesso (uso único)<input id="cPin" autocomplete="off" placeholder="JR-000" required></label>
+      <label>PIN de acesso (uso único)<input id="cPin" autocomplete="off" placeholder="JR-000" maxlength="10" required></label>
       <label>Nome completo<input id="cNome" maxlength="60" required></label>
       <div class="radios">
         <span class="lbl">Tem apelido?</span>
@@ -81,21 +83,14 @@
         <label><input type="radio" name="apelidoSN" value="sim"> Sim</label>
       </div>
       <label id="boxApelido" class="hidden">Apelido<input id="cApelido" maxlength="20"></label>
-      <label>Posição principal
-        <select id="cPos"></select>
-      </label>
+      <label>Posição principal<select id="cPos"></select></label>
       <div class="grid2 tight">
-        <label>Camisa (1 a 99)
-          <select id="cCamisa"></select>
-        </label>
+        <label>Camisa (1 a 99)<select id="cCamisa"></select></label>
         <label>Modalidade
-          <select id="cMod">
-            <option>Campo</option>
-            <option>Quadra</option>
-            <option>Os dois</option>
-          </select>
+          <select id="cMod"><option>Campo</option><option>Quadra</option><option>Os dois</option></select>
         </label>
       </div>
+      <label>Time<select id="cTime"><option value="A">Time A</option><option value="B">Time B</option></select></label>
       <label>Foto de perfil (opcional)<input id="cFoto" type="file" accept="image/*"></label>
       <label class="check"><input type="checkbox" id="cAuth"> Autorizo o uso da minha foto</label>
       <button class="btn" type="submit">Criar meu perfil</button>
@@ -110,36 +105,34 @@
 
     <form id="formTec" class="card narrow hidden">
       <h2>Cadastro do técnico</h2>
-      <label>PIN de acesso (uso único)<input id="tPin" autocomplete="off" placeholder="TEC-XXXX" required></label>
+      <label>PIN de acesso (uso único)<input id="tPin" autocomplete="off" placeholder="TEC-XXXX" maxlength="12" required></label>
       <label>Seu nome<input id="tNome" maxlength="60" required></label>
-      <label>Time
-        <select id="tTime"></select>
-      </label>
+      <label>Time<select id="tTime"></select></label>
       <label>Foto (opcional)<input id="tFoto" type="file" accept="image/*"></label>
       <button class="btn" type="submit">Cadastrar técnico</button>
     </form>
 
     <div id="tecBoard" class="stack hidden">
-      <div class="card toolbar">
-        <div style="flex:1;min-width:220px">
-          <h2 id="tTitulo"></h2>
-          <label>Nome do time<input id="tNomeTime" maxlength="30" placeholder="Ex.: Amigos do Campinho"></label>
-          <p class="muted">Quem tem a posição certa entra automaticamente. Toque na vaga para trocar.</p>
+      <div class="card">
+        <h2 id="tTitulo"></h2>
+        <div class="row wrap" style="margin-top:8px">
+          <label style="flex:1;min-width:180px">Nome do time<input id="tNomeTime" maxlength="30" placeholder="Ex.: Amigos do Campinho"></label>
+          <label style="min-width:130px">Modalidade<select id="tMod" class="sel"><option>Campo</option><option>Quadra</option></select></label>
+          <label style="min-width:130px">Esquema<select id="tFormation" class="sel"></select></label>
         </div>
         <div class="row wrap">
-          <select id="tFormation" class="sel"></select>
           <button class="btn-ghost" id="btnEmbaralhar">Embaralhar (teste)</button>
           <button class="btn-danger" id="btnZerar">Zerar escalação</button>
         </div>
-      </div>
-
-      <div class="card">
-        <h3>Jogadores do time</h3>
-        <p class="muted">Toque para adicionar ou remover. Jogador de outro time aparece bloqueado.</p>
-        <div id="tMembers" class="picks"></div>
+        <p class="muted" style="margin-top:10px">Toque em uma vaga para trocar o jogador. A posição de cada um define a vaga certa.</p>
       </div>
 
       <div class="card"><div id="tPitch" class="pitch"></div></div>
+
+      <div class="card">
+        <h3>Elenco do time</h3>
+        <div id="tMembers" class="picks"></div>
+      </div>
 
       <div class="card">
         <h3>Banco de reservas</h3>
@@ -159,7 +152,7 @@
 
     <form id="formRef" class="card narrow hidden">
       <h2>Cadastro do árbitro</h2>
-      <label>PIN de acesso (uso único)<input id="rPin" autocomplete="off" placeholder="JUIZ-XXXX" required></label>
+      <label>PIN de acesso (uso único)<input id="rPin" autocomplete="off" placeholder="JUIZ-XXXX" maxlength="12" required></label>
       <label>Seu nome<input id="rNome" maxlength="60" required></label>
       <button class="btn" type="submit">Entrar na súmula</button>
     </form>
@@ -170,59 +163,69 @@
         <h3>Pré-jogo</h3>
         <div class="grid2 tight">
           <label>Local<input id="pLocal" maxlength="80" placeholder="Ex.: Campinho do Distrito"></label>
-          <label>Data e horário<input id="pDate" type="datetime-local"></label>
+          <label>Data e horário do jogo<input id="pDate" type="datetime-local"></label>
           <label>Clima
-            <select id="pClima">
-              <option>Sol</option><option>Nublado</option><option>Calor forte</option><option>Frio</option><option>Chuva</option>
-            </select>
+            <select id="pClima"><option>Sol</option><option>Nublado</option><option>Calor forte</option><option>Frio</option><option>Chuva</option></select>
           </label>
           <label>Gramado
-            <select id="pGram">
-              <option>Seco</option><option>Bom</option><option>Molhado</option>
-            </select>
+            <select id="pGram"><option>Seco</option><option>Bom</option><option>Molhado</option></select>
           </label>
-          <label>Período
-            <select id="pPeriodo"><option>Dia</option><option>Noite</option></select>
-          </label>
+          <label>Período<select id="pPeriodo"><option>Dia</option><option>Noite</option></select></label>
           <label class="check"><input type="checkbox" id="pIlum"> Tem iluminação</label>
-          <label>Modalidade
-            <select id="pMod"><option>Campo</option><option>Quadra</option></select>
-          </label>
-          <label>Tipo
-            <select id="pTipo"><option>Amistoso</option><option>Valendo</option></select>
-          </label>
+          <label>Modalidade<select id="pMod"><option>Campo</option><option>Quadra</option></select></label>
+          <label>Tipo<select id="pTipo"><option>Amistoso</option><option>Valendo</option></select></label>
           <label>Minutos por tempo<input id="pTempo" type="number" min="5" max="60" value="20"></label>
+          <label>Data do próximo jogo (opcional)<input id="pProx" type="datetime-local"></label>
         </div>
         <div id="pVeredito" class="veredito"></div>
         <button class="btn-small" id="btnSalvarPre">Salvar pré-jogo</button>
       </div>
 
-      <div class="card center">
-        <div class="placar">
-          <div><span class="muted" id="lblA">Time A</span><b id="placarA">0</b></div>
-          <span class="x">×</span>
-          <div><span class="muted" id="lblB">Time B</span><b id="placarB">0</b></div>
+      <div class="card">
+        <div class="scoreboard">
+          <div class="sb-team">
+            <span class="muted" id="lblA">Time A</span>
+            <div class="sb-num" id="scoreA">0</div>
+            <div class="row center">
+              <button class="btn-ghost sb-btn" id="btnMenosA">−</button>
+              <button class="btn-small sb-btn" id="btnMaisA">+</button>
+            </div>
+          </div>
+          <div class="sb-x">×</div>
+          <div class="sb-team">
+            <span class="muted" id="lblB">Time B</span>
+            <div class="sb-num" id="scoreB">0</div>
+            <div class="row center">
+              <button class="btn-ghost sb-btn" id="btnMenosB">−</button>
+              <button class="btn-small sb-btn" id="btnMaisB">+</button>
+            </div>
+          </div>
         </div>
+
         <div class="clock" id="clock">00:00</div>
-        <p class="muted" id="halfLabel">Aguardando início</p>
+        <p class="muted center" id="halfLabel">Aguardando início</p>
         <div class="row wrap center">
-          <button class="btn-small" id="bPlay">▶ Iniciar</button>
-          <button class="btn-ghost" id="bPause">⏸ Pausar</button>
+          <button class="btn-small" id="bPlay">Iniciar</button>
           <button class="btn-ghost" id="bInt">Intervalo</button>
-          <button class="btn-danger" id="bEnd">■ Encerrar</button>
+          <button class="btn-ghost" id="bRec">Recomeçar 2º tempo</button>
+          <button class="btn-ghost" id="bAcr">+5 min de acréscimo</button>
+          <button class="btn-danger" id="bEnd">Encerrar</button>
         </div>
       </div>
 
       <div class="card">
-        <h3>Lançar lance</h3>
-        <p class="muted">1. Escolha o time. 2. Toque no jogador. 3. Escolha Gol, Amarelo ou Vermelho.</p>
-        <div class="row wrap">
-          <button class="btn-small" id="bTimeA">Time A</button>
-          <button class="btn-ghost" id="bTimeB">Time B</button>
+        <div class="row between wrap">
+          <h3 style="margin:0">Elencos e lances</h3>
+          <div class="row wrap">
+            <button class="btn-ghost hidden" id="btnSimular">Simular lances (teste)</button>
+            <button class="btn-ghost hidden" id="btnGolTeste">Gol aleatório (teste)</button>
+          </div>
         </div>
-        <div id="roster" class="picks" style="margin-top:12px"></div>
-        <button class="btn-ghost hidden" id="btnSimular" style="margin-top:12px">▶ Simular lances (teste)</button>
-        <button class="btn-ghost hidden" id="btnGolTeste" style="margin-top:12px">⚽ Gol aleatório (teste)</button>
+        <p class="muted">Toque no jogador para lançar cartão amarelo ou vermelho. Para gol, use o + do placar.</p>
+        <div class="side-cols">
+          <div><h4 id="lblRA">Time A</h4><div id="rosterA" class="roster"></div></div>
+          <div><h4 id="lblRB">Time B</h4><div id="rosterB" class="roster"></div></div>
+        </div>
       </div>
 
       <div class="card">
@@ -231,6 +234,11 @@
           <button class="btn-ghost" id="btnDesfazer">Desfazer último</button>
         </div>
         <div id="feed" class="feed" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h3>PINs usados</h3>
+        <div id="segList" class="list"></div>
       </div>
 
       <div class="card">
@@ -250,35 +258,56 @@
   <section class="page hidden" data-page="torcida">
     <form id="formFan" class="card narrow hidden">
       <h2>Quem vai votar?</h2>
-      <p class="muted">Cadastre seu nome para poder votar. Não precisa de PIN.</p>
+      <p class="muted">Digite seu nome para entrar. Não precisa de PIN.</p>
       <label>Seu nome<input id="fNome" maxlength="60" required></label>
-      <button class="btn" type="submit">Entrar na torcida</button>
+      <button class="btn" type="submit">Entrar</button>
     </form>
 
     <div id="fanBox" class="stack hidden">
+
+      <div class="card"><div id="cdBox"></div></div>
+
       <div class="card">
-        <h2>📈 Torcida & Votação</h2>
+        <h2><span class="ico-inline" data-ic="vot"></span> Torcida & Votação</h2>
         <p class="muted" id="fStatus"></p>
         <div id="fQ" class="row hidden" style="margin-top:12px">
           <button class="btn-small" id="btnSim">Sim, assisti</button>
-          <button class="btn-ghost" id="btnNao">Não</button>
+          <button class="btn-ghost" id="btnNao">Não assisti</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Times e votos</h3>
+        <div class="fan-cols">
+          <div><h4 id="fLblA">Time A</h4><div id="fColA" class="fan-col"></div></div>
+          <div><h4 id="fLblB">Time B</h4><div id="fColB" class="fan-col"></div></div>
         </div>
       </div>
 
       <div id="fVote" class="card hidden">
-        <h3>Escolha o jogador e dê a nota</h3>
-        <div id="fGrid" class="picks"></div>
-        <label style="margin-top:14px">Nota: <b class="neon" id="fNota">50</b> / 100
+        <h3 id="fVoteTitulo">Dê a sua nota</h3>
+        <p class="muted" id="fEscolhido">Toque num jogador acima para escolhê-lo.</p>
+        <label style="margin-top:12px">Nota: <b class="neon" id="fNota">50</b> / 100
           <input type="range" id="fRange" min="0" max="100" value="50">
         </label>
         <button class="btn" id="btnVotar">Confirmar voto</button>
       </div>
 
       <div class="card">
-        <h3>Resenha</h3>
+        <h3>Tabela de votação</h3>
+        <div id="fRank" class="tablewrap"></div>
+      </div>
+
+      <div class="card">
+        <h3>Lances da partida</h3>
+        <div id="fLances"></div>
+      </div>
+
+      <div class="card">
+        <h3>Comentários</h3>
         <div id="mural" class="mural"></div>
         <div class="row">
-          <input id="comment" maxlength="200" placeholder="Escreva sua opinião">
+          <input id="comment" maxlength="200" placeholder="Escreva seu comentário">
           <button class="btn-small" id="btnComentar">Publicar</button>
         </div>
       </div>
@@ -293,6 +322,6 @@
 <dialog id="modal"><div id="modalBody"></div></dialog>
 <div id="printArea"></div>
 
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
